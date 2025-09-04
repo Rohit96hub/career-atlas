@@ -10,7 +10,7 @@ from agent import run_agent, scrape_web_content, run_chat, CareerActionPlan
 app = Flask(__name__)
 # A secret key is required for Flask sessions
 app.secret_key = secrets.token_hex(16)
-app.config['UPLOAD_FOLDER'] = 'uploads'
+app.config['UPLOAD_FOLDER'] = '/tmp'
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
 @app.route('/')
@@ -77,4 +77,5 @@ def chat():
     return jsonify({"response": ai_response})
 
 if __name__ == '__main__':
+
     app.run(debug=True)
