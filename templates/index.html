@@ -1,0 +1,70 @@
+<!-- templates/index.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Career Navigator</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>AI Career Navigator</h1>
+            <p>Your personal, data-driven guide to a future-proof career.</p>
+        </header>
+        <main>
+            <form id="navigator-form" action="/process" method="post" enctype="multipart/form-data">
+                <div class="form-group">
+                    <label for="resume">Upload Your Resume (PDF)</label>
+                    <input type="file" id="resume" name="resume" accept=".pdf" required>
+                </div>
+                <div class="form-group">
+                    <label for="linkedin_url">LinkedIn Profile URL (Optional)</label>
+                    <input type="url" id="linkedin_url" name="linkedin_url" placeholder="https://www.linkedin.com/in/your-profile">
+                </div>
+                <div class="form-group">
+                    <label for="career_choice">Select Your Target Role</label>
+                    <select id="career_choice" name="career_choice" onchange="toggleCustomRole(this.value)">
+                        <optgroup label="I'm not sure...">
+                            <option value="resume_based">Suggest a role based on my resume</option>
+                            <option value="market_demand">Suggest a role based on market demand</option>
+                        </optgroup>
+                        <optgroup label="Common Roles">
+                            <option value="Data Analyst">Data Analyst</option>
+                            <option value="Software Engineer">Software Engineer</option>
+                            <option value="Product Manager">Product Manager</option>
+                            <option value="UI/UX Designer">UI/UX Designer</option>
+                            <option value="AI/ML Engineer">AI/ML Engineer</option>
+                            <option value="Other">Other (Please specify)</option>
+                        </optgroup>
+                    </select>
+                </div>
+                <div class="form-group hidden" id="custom-role-group">
+                    <label for="custom_role">Specify Custom Role</label>
+                    <input type="text" id="custom_role" name="custom_role" placeholder="e.g., DevOps Engineer">
+                </div>
+                <button type="submit" class="submit-btn">Generate My Action Plan</button>
+            </form>
+            <div id="loading-indicator" class="hidden">
+                <div class="spinner"></div>
+                <p>Your AI team is analyzing your future. This may take a moment...</p>
+            </div>
+        </main>
+    </div>
+    <script>
+        function toggleCustomRole(value) {
+            const customRoleGroup = document.getElementById('custom-role-group');
+            if (value === 'Other') { customRoleGroup.classList.remove('hidden'); }
+            else { customRoleGroup.classList.add('hidden'); }
+        }
+        document.getElementById('navigator-form').addEventListener('submit', function() {
+            document.getElementById('navigator-form').style.display = 'none';
+            document.getElementById('loading-indicator').classList.remove('hidden');
+        });
+    </script>
+</body>
+</html>
