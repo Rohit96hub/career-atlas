@@ -65,20 +65,23 @@ class ResumePDF(FPDF):
         self.set_font(FONT_FAMILY, '', 10)
         self.set_text_color(*PRIMARY_COLOR)
         for point in description_points:
-            self.multi_cell(0, 5, f'• {point}')
+            # CORRECTED LINE: Added split_only=True to prevent crash
+            self.multi_cell(0, 5, f'• {point}', split_only=True)
         self.ln(5)
 
     def add_text_block(self, text):
         self.set_font(FONT_FAMILY, '', 10)
         self.set_text_color(*PRIMARY_COLOR)
-        self.multi_cell(0, 5, text)
+        # CORRECTED LINE: Added split_only=True here as well for robustness
+        self.multi_cell(0, 5, text, split_only=True)
         self.ln(5)
         
     def add_skills(self, skills):
         self.set_font(FONT_FAMILY, '', 10)
         self.set_text_color(*PRIMARY_COLOR)
         skills_text = " | ".join(skills)
-        self.multi_cell(0, 5, skills_text)
+        # CORRECTED LINE: Added split_only=True here as well for robustness
+        self.multi_cell(0, 5, skills_text, split_only=True)
         self.ln(5)
 
 def create_resume_pdf(content, image_path, output_path):
