@@ -5,19 +5,18 @@ from typing import TypedDict, List, Optional
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.tools import tool
-from pydantic import BaseModel, Field  # CORRECTED LINE: Import directly from Pydantic
+from pydantic import BaseModel, Field
 from langgraph.graph import StateGraph, END
 import requests
 from bs4 import BeautifulSoup
 
-print("--- Loading Masterclass Agent Backend v5.1 (Import Fix) ---")
+print("--- Loading Masterclass Agent Backend v5.2 (Final Fix) ---")
 
-# --- API Keys and Tracing Setup ---
 os.environ["OPENAI_API_KEY"] = os.getenv("OPENAI_API_KEY")
 os.environ["LANGCHAIN_API_KEY"] = os.getenv("LANGCHAIN_API_KEY")
 os.environ["TAVILY_API_KEY"] = os.getenv("TAVILY_API_KEY")
 os.environ["LANGCHAIN_TRACING_V2"] = "true"
-os.environ["LANGCHAIN_PROJECT"] = "Flask Career Navigator v5.1"
+os.environ["LANGCHAIN_PROJECT"] = "Flask Career Navigator v5.2"
 
 # --- Pydantic Models ---
 class SkillAnalysis(BaseModel):
@@ -65,7 +64,6 @@ class TeamState(TypedDict):
 # --- LLM and Tools ---
 llm = ChatOpenAI(model="gpt-4o", temperature=0.2)
 
-# CORRECTED: The scrape_web_content tool function is now included.
 @tool
 def scrape_web_content(url: str) -> str:
     """Scrapes text content from a given URL."""
@@ -86,7 +84,7 @@ def create_resume_writing_team():
         market_analysis: SkillAnalysis
         summary: str
         experiences: List[JobExperience]
-        skills: List[str]
+        base_resume_content: TailoredResumeContent
         final_resume_content: TailoredResumeContent
 
     summary_writer_agent = ChatPromptTemplate.from_template(
@@ -94,13 +92,12 @@ def create_resume_writing_team():
         "Target Career: {chosen_career}\nUser Profile: {student_profile}"
     ) | llm
     experience_rewriter_agent = ChatPromptTemplate.from_template(
-        "You are an expert resume writer. Rewrite the following work experience to be achievement-oriented, using keywords from the skill analysis. "
-        "Focus on the STAR method (Situation, Task, Action, Result) and quantify results. "
-        "Target Career: {chosen_career}\nRequired Skills: {skills}\nUser Experience: {student_profile}"
+        "You are an expert resume writer. Rewrite the user's work experience to be achievement-oriented, using keywords from the skill analysis. "
+        "Focus on the STAR method. Target Career: {chosen_career}\nRequired Skills: {skills}\nUser Experience: {student_profile}"
     ) | llm.with_structured_output(JobExperience)
-    skills_extractor_agent = ChatPromptTemplate.from_template(
-        "You are a skills analyst. Extract and list the most relevant technical and soft skills from the user's profile, cross-referencing with the required market skills. "
-        "Required Skills: {skills}\nUser Profile: {student_profile}"
+    base_content_extractor = ChatPromptTemplate.from_template(
+        "You are a data extractor. Extract the user's full name, email, phone, education, and a list of skills from their profile. "
+        "User Profile: {student_profile}"
     ) | llm.with_structured_output(TailoredResumeContent)
 
     def summary_node(state: ResumeTeamState):
@@ -115,30 +112,30 @@ def create_resume_writing_team():
             "student_profile": state["student_profile"]
         })
         return {"experiences": [result]}
-    def skills_node(state: ResumeTeamState):
-        print("    > Writing Room: Skills Extractor Agent...")
-        result = skills_extractor_agent.invoke({
-            "skills": state["market_analysis"].technical_skills,
-            "student_profile": state["student_profile"]
-        })
-        return {"skills": result.skills, "final_resume_content": result}
+    def base_content_node(state: ResumeTeamState):
+        print("    > Writing Room: Base Content Extractor...")
+        result = base_content_extractor.invoke({"student_profile": state["student_profile"]})
+        return {"base_resume_content": result}
     def compile_resume_node(state: ResumeTeamState):
         print("    > Writing Room: Compiling Resume...")
-        final_resume = state["final_resume_content"]
+        final_resume = state["base_resume_content"]
         final_resume.summary = state["summary"]
         final_resume.experiences = state["experiences"]
         return {"final_resume_content": final_resume}
 
     builder = StateGraph(ResumeTeamState)
-    builder.add_node("summary", summary_node)
-    builder.add_node("experience", experience_node)
-    builder.add_node("skills_and_extract", skills_node)
+    builder.add_node("extract_base", base_content_node)
+    builder.add_node("write_summary", summary_node)
+    builder.add_node("rewrite_experience", experience_node)
     builder.add_node("compile", compile_resume_node)
-    builder.set_entry_point("summary")
-    builder.add_edge("summary", "compile")
-    builder.add_edge("experience", "compile")
-    builder.add_edge("skills_and_extract", "compile")
+    
+    # CORRECTED: A robust sequential workflow for the sub-graph
+    builder.set_entry_point("extract_base")
+    builder.add_edge("extract_base", "write_summary")
+    builder.add_edge("write_summary", "rewrite_experience")
+    builder.add_edge("rewrite_experience", "compile")
     builder.add_edge("compile", END)
+    
     return builder.compile()
 
 # --- MAIN AGENT WORKFLOW ---
@@ -196,7 +193,7 @@ def lead_agent_node(state: TeamState):
     chain = prompt | structured_llm
     final_plan = chain.invoke({"career": state["chosen_career"], "skills": state["market_analysis"].dict(), "profile_feedback": state["profile_analysis"].dict()})
     return {"final_plan": final_plan}
-
+    
 def route_initial_choice(state: TeamState):
     print("--- 🚦 Main Router ---")
     return "suggest_role" if state["role_choice"] in ["resume_based", "market_demand"] else "analyze_market"
