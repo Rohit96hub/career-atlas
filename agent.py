@@ -5,14 +5,13 @@ from typing import TypedDict, List, Optional
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.tools import tool
-from pydantic import BaseModel, Field  # CORRECTED LINE: Import directly from Pydantic
+from pydantic import BaseModel, Field
 from langgraph.graph import StateGraph, END
 import requests
 from bs4 import BeautifulSoup
 
-print("--- Loading Masterclass Agent Backend v6.1 (Final Fix) ---")
+print("--- Loading Masterclass Agent Backend v6.2 (Scope Fix) ---")
 
-# --- API Keys and Tracing Setup ---
 os.environ["OPENAI_API_KEY"] = os.getenv("OPENAI_API_KEY")
 os.environ["LANGCHAIN_API_KEY"] = os.getenv("LANGCHAIN_API_KEY")
 os.environ["TAVILY_API_KEY"] = os.getenv("TAVILY_API_KEY")
@@ -65,7 +64,6 @@ class TeamState(TypedDict):
 # --- LLM and Tools ---
 llm = ChatOpenAI(model="gpt-4o", temperature=0.2)
 
-# CORRECTED: The scrape_web_content tool function is now included.
 @tool
 def scrape_web_content(url: str) -> str:
     """Scrapes text content from a given URL."""
@@ -80,6 +78,21 @@ def scrape_web_content(url: str) -> str:
 # --- RESUME WRITING ROOM (SUB-GRAPH) ---
 def create_resume_writing_team():
     """Creates the 'Resume Assembly Line' sub-graph."""
+    
+    # CORRECTED: Pydantic models needed by the sub-graph are defined INSIDE its scope.
+    class ParsedExperience(BaseModel):
+        title: str
+        company: str
+        description: str
+
+    class ParsedProfile(BaseModel):
+        full_name: str
+        email: str
+        phone: str
+        education: str
+        raw_experiences: List[ParsedExperience]
+        raw_skills: List[str]
+
     class ResumeTeamState(TypedDict):
         student_profile: str
         chosen_career: str
@@ -89,19 +102,6 @@ def create_resume_writing_team():
         rewritten_experiences: List[JobExperience]
         optimized_skills: List[str]
         final_resume_content: TailoredResumeContent
-
-    # New Pydantic model for the parsing step
-    class ParsedExperience(BaseModel):
-        title: str
-        company: str
-        description: str
-    class ParsedProfile(BaseModel):
-        full_name: str
-        email: str
-        phone: str
-        education: str
-        raw_experiences: List[ParsedExperience]
-        raw_skills: List[str]
 
     # --- Micro-Agent Definitions ---
     profile_parser_agent = llm.with_structured_output(ParsedProfile)
@@ -183,7 +183,7 @@ def role_suggester_agent(state: TeamState):
     if state["role_choice"] == "resume_based":
         prompt_text = "Analyze the user's profile and suggest the single most suitable job role. Output only the job title. Profile: {profile}"
     else:
-        prompt_text = "Based on current tech trends, suggest a single, high-demand job role. Output only the job title."
+        prompt_text = "Based on current tech trends, suggest a single, high-demand job role for a college student. Output only the job title."
     prompt = ChatPromptTemplate.from_template(prompt_text)
     chain = prompt | llm
     suggested_role = chain.invoke({"profile": state["student_profile"]}).content.strip()
