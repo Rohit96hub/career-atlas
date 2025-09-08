@@ -13,7 +13,7 @@
 <body>
     <div class="container result-container">
         <header>
-            <h1>Your Personalized Career Action Plan</h1>
+            <h1>🗺️ Your Personalized Career Action Plan</h1>
             <p>For the role of: <strong>{{ plan.chosen_career }}</strong></p>
         </header>
         <main>
@@ -54,12 +54,12 @@
 
             <div class="result-section">
                 <h2>4. Your 8-Week Learning Roadmap</h2>
-                <div class="markdown-content" id="learning-roadmap-content">{{ plan.learning_roadmap }}</div>
+                <div class="markdown-content" id="learning-roadmap-content"></div>
             </div>
 
             <div class="result-section">
                 <h2>5. Your Portfolio Project Plan</h2>
-                <div class="markdown-content" id="portfolio-plan-content">{{ plan.portfolio_plan }}</div>
+                <div class="markdown-content" id="portfolio-plan-content"></div>
             </div>
 
             <div class="result-section chat-section">
@@ -75,12 +75,21 @@
             </div>
         </main>
     </div>
-    <script>
-        // Use the Marked.js library to render markdown from the agent
-        document.getElementById('learning-roadmap-content').innerHTML = marked.parse(document.getElementById('learning-roadmap-content').textContent || '');
-        document.getElementById('portfolio-plan-content').innerHTML = marked.parse(document.getElementById('portfolio-plan-content').textContent || '');
 
-        // JavaScript for the interactive chat
+    <script>
+        // Pass the plan data from Flask (Jinja2) to JavaScript safely as a JSON object
+        const planData = {{ plan.dict() | tojson | safe }};
+
+        // Configure the marked.js library to treat newlines as <br> tags
+        marked.setOptions({
+            breaks: true
+        });
+
+        // Render the markdown content with proper formatting
+        document.getElementById('learning-roadmap-content').innerHTML = marked.parse(planData.learning_roadmap || '');
+        document.getElementById('portfolio-plan-content').innerHTML = marked.parse(planData.portfolio_plan || '');
+
+        // JavaScript for the interactive chat (no changes needed here)
         const chatContainer = document.getElementById('chat-container');
         const chatInput = document.getElementById('chat-input');
         const chatSendBtn = document.getElementById('chat-send-btn');
