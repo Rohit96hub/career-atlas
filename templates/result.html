@@ -1,23 +1,26 @@
-<!-- templates/result.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Your Career Action Plan</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 </head>
 <body>
     <div class="container result-container">
         <header>
-            <h1>Your Personalized Career Action Plan</h1>
-            <p>For the role of: <strong>{{ plan.chosen_career }}</strong></p>
+            <h1>🗺️ Your Personalized Career Action Plan for: {{ plan.chosen_career }}</h1>
         </header>
         <main>
+            <div class="result-section resume-preview-section">
+                <h2>Your AI-Generated Resume</h2>
+                <div class="resume-actions">
+                    <a href="{{ url_for('download_resume', filename=resume_pdf) }}" class="download-btn" download>Download PDF Resume</a>
+                </div>
+                <iframe src="{{ url_for('download_resume', filename=resume_pdf) }}" width="100%" height="600px" style="border: 1px solid #e5e7eb; border-radius: 8px;"></iframe>
+            </div>
+
             <div class="result-section">
                 <h2>1. Career Overview</h2>
                 <p>{{ plan.career_overview }}</p>
@@ -29,8 +32,8 @@
             </div>
             <div class="result-section">
                 <h2>3. Your Profile Feedback</h2>
-                <p><strong>Strengths:</strong> {{ plan.profile_feedback.resume_strengths | join(' ') }}</p>
-                <p><strong>Gaps to Fill:</strong> {{ plan.profile_feedback.resume_gaps | join(', ') }}</p>
+                <p><strong>Resume Strengths:</strong> {{ plan.profile_feedback.resume_strengths | join(' ') }}</p>
+                <p><strong>Resume Gaps:</strong> {{ plan.profile_feedback.resume_gaps | join(', ') }}</p>
                 <p><strong>LinkedIn Suggestions:</strong></p>
                 <ul>
                     {% for suggestion in plan.profile_feedback.linkedin_suggestions %}
@@ -47,63 +50,10 @@
                 <div class="markdown-content" id="portfolio-plan-content">{{ plan.portfolio_plan }}</div>
             </div>
 
-            <!-- Interactive Chat Section -->
-            <div class="result-section chat-section">
-                <h2>Chat with Your AI Coach</h2>
-                <p>Ask follow-up questions to dive deeper into your action plan.</p>
-                <div class="chat-container" id="chat-container">
-                    <div class="chat-message ai">I've created your plan. What would you like to explore in more detail?</div>
-                </div>
-                <div class="chat-input-area">
-                    <input type="text" id="chat-input" placeholder="e.g., 'Can you elaborate on the Week 3 project?'">
-                    <button id="chat-send-btn">Send</button>
-                </div>
-            </div>
+
+            <div class="chat-section">
+                 </div>
         </main>
     </div>
-    <script>
-        document.getElementById('learning-roadmap-content').innerHTML = marked.parse(document.getElementById('learning-roadmap-content').textContent);
-        document.getElementById('portfolio-plan-content').innerHTML = marked.parse(document.getElementById('portfolio-plan-content').textContent);
-
-        const chatContainer = document.getElementById('chat-container');
-        const chatInput = document.getElementById('chat-input');
-        const chatSendBtn = document.getElementById('chat-send-btn');
-        let chatHistory = [];
-
-        async function handleChatSubmit() {
-            const userMessage = chatInput.value.trim();
-            if (!userMessage) return;
-            appendMessage(userMessage, 'user');
-            chatInput.value = '';
-            const typingIndicator = appendMessage('Typing...', 'ai typing');
-
-            try {
-                const response = await fetch('/chat', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ message: userMessage, history: chatHistory })
-                });
-                const data = await response.json();
-                typingIndicator.remove();
-                appendMessage(data.response, 'ai');
-                chatHistory.push({ "user": userMessage, "ai": data.response });
-            } catch (error) {
-                typingIndicator.remove();
-                appendMessage('Sorry, an error occurred. Please try again.', 'ai');
-            }
-        }
-
-        function appendMessage(text, sender) {
-            const messageDiv = document.createElement('div');
-            messageDiv.className = `chat-message ${sender}`;
-            messageDiv.innerHTML = marked.parse(text);
-            chatContainer.appendChild(messageDiv);
-            chatContainer.scrollTop = chatContainer.scrollHeight;
-            return messageDiv;
-        }
-
-        chatSendBtn.addEventListener('click', handleChatSubmit);
-        chatInput.addEventListener('keypress', (e) => e.key === 'Enter' && handleChatSubmit());
-    </script>
-</body>
+    </body>
 </html>
