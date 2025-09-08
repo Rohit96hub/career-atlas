@@ -1,26 +1,33 @@
 # resume_generator.py
 
 from fpdf import FPDF
+import os
 
-# Define constants for colors and fonts for a professional look
-PRIMARY_COLOR = (22, 27, 34) # Dark Charcoal
-ACCENT_COLOR = (99, 102, 241) # Indigo
-SECONDARY_COLOR = (74, 85, 104) # Cool Gray
-FONT_FAMILY = "Arial"
+# Define constants for colors and the new font family
+PRIMARY_COLOR = (22, 27, 34)
+ACCENT_COLOR = (99, 102, 241)
+SECONDARY_COLOR = (74, 85, 104)
+FONT_FAMILY = "DejaVu" # Our new, bundled font
 
 class ResumePDF(FPDF):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # --- ADD THE FONTS TO THE PDF ---
+        # Get the path to the current script's directory
+        font_path = os.path.join(os.path.dirname(__file__), 'fonts')
+        self.add_font(FONT_FAMILY, '', os.path.join(font_path, 'DejaVuSans.ttf'))
+        self.add_font(FONT_FAMILY, 'B', os.path.join(font_path, 'DejaVuSans-Bold.ttf'))
+        self.add_font(FONT_FAMILY, 'I', os.path.join(font_path, 'DejaVuSans-Oblique.ttf'))
+
     def header(self):
-        # No header needed for a resume
         pass
 
     def footer(self):
-        # No footer needed for a resume
         pass
-
+        
     def add_profile_picture(self, image_path):
-        if image_path:
+        if image_path and os.path.exists(image_path):
             self.image(image_path, x=15, y=20, w=40, h=40)
-            # Create a circular mask (advanced technique not directly supported, so we use a circular frame as an effect)
             self.set_line_width(1)
             self.set_draw_color(*ACCENT_COLOR)
             self.ellipse(15, 20, 40, 40)
@@ -79,25 +86,20 @@ def create_resume_pdf(content, image_path, output_path):
     pdf = ResumePDF('P', 'mm', 'A4')
     pdf.add_page()
     
-    # Header Section
     pdf.add_profile_picture(image_path)
     pdf.add_personal_info(content.full_name, content.email, content.phone)
-    pdf.ln(20) # Space after header
+    pdf.ln(20)
 
-    # Professional Summary
     pdf.add_section_title("Professional Summary")
     pdf.add_text_block(content.summary)
 
-    # Work Experience
     pdf.add_section_title("Work Experience")
     for job in content.experiences:
         pdf.add_job(job.title, job.company, job.dates, job.description)
 
-    # Education
     pdf.add_section_title("Education")
     pdf.add_text_block(content.education)
     
-    # Skills
     pdf.add_section_title("Skills")
     pdf.add_skills(content.skills)
 
