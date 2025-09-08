@@ -65,7 +65,7 @@ class TeamState(TypedDict):
     final_plan: Optional[CareerActionPlan]
 
 # --- Tools and Agents ---
-llm = ChatOpenAI(model="gpt-4o", temperature=0)
+llm = ChatOpenAI(model="gpt-3.5-turbo", temperature=0)
 
 # ... (role_suggester_agent, job_market_analyst_agent, profile_reviewer_agent are unchanged) ...
 def role_suggester_agent(state: TeamState):
@@ -185,3 +185,4 @@ def run_chat(user_message, history, plan_context):
     chat_chain = prompt | llm
     response = chat_chain.invoke({"plan_text": str(plan_context), "user_question": user_message})
     return response.content
+
