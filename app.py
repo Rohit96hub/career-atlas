@@ -5,7 +5,6 @@ from pypdf import PdfReader
 import os
 import secrets
 import uuid
-# Import the new resume generator and updated agent logic
 from agent import run_agent, scrape_web_content, run_chat
 from resume_generator import create_resume_pdf
 
@@ -20,8 +19,9 @@ def index():
 
 @app.route('/process', methods=['POST'])
 def process():
+    # ... (file handling and agent invocation logic remains the same) ...
     resume_file = request.files.get('resume')
-    profile_pic_file = request.files.get('profile_picture') # New file
+    profile_pic_file = request.files.get('profile_picture')
     linkedin_url = request.form.get('linkedin_url', '').strip()
     role_choice = request.form.get('career_choice')
     custom_role = request.form.get('custom_role', '').strip()
@@ -34,7 +34,6 @@ def process():
     if not resume_file or resume_file.filename == '':
         return "A PDF resume is required to proceed."
 
-    # --- File Handling ---
     unique_id = str(uuid.uuid4())
     resume_filepath = os.path.join(app.config['UPLOAD_FOLDER'], f"{unique_id}_resume.pdf")
     resume_file.save(resume_filepath)
@@ -56,36 +55,39 @@ def process():
     
     student_profile_text = f"--- RESUME ---\n{resume_text}\n\n--- LINKEDIN PROFILE ---\n{linkedin_text}"
 
-    # --- Run the LangGraph Agent ---
     agent_result = run_agent(student_profile_text, final_role_choice)
     final_plan = agent_result['final_plan']
     tailored_resume_content = agent_result['tailored_resume']
     
-    # --- Generate the PDF Resume ---
     resume_pdf_filename = f"{unique_id}_generated_resume.pdf"
     resume_pdf_path = os.path.join(app.config['UPLOAD_FOLDER'], resume_pdf_filename)
     create_resume_pdf(tailored_resume_content, image_filepath, resume_pdf_path)
 
     session['plan'] = final_plan.dict()
     
-    return render_template('result.html', plan=final_plan, resume_pdf=resume_pdf_filename)
+    return render_template('result.html', plan=final_plan, resume_pdf_filename=resume_pdf_filename)
 
+# NEW ROUTE for embedding the PDF in the iframe
+@app.route('/preview/<filename>')
+def preview_resume(filename):
+    """Serves the PDF for inline viewing."""
+    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+
+# UPDATED ROUTE for the download button
 @app.route('/download/<filename>')
 def download_resume(filename):
-    """Provides the generated resume for download."""
+    """Provides the generated resume for download with the correct header."""
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename, as_attachment=True)
 
 @app.route('/chat', methods=['POST'])
 def chat():
-    # ... (no changes here from before) ...
     user_message = request.json.get('message')
     history = request.json.get('history')
     plan_context = session.get('plan', {})
     if not plan_context:
-        return jsonify({"response": "I'm sorry, I've lost the context of your plan. Please start over."})
+        return jsonify({"response": "I'm sorry, I've lost context. Please start over."})
     ai_response = run_chat(user_message, history, plan_context)
     return jsonify({"response": ai_response})
-
 
 if __name__ == '__main__':
     app.run(debug=True)
