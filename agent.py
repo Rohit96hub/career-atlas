@@ -10,13 +10,13 @@ from langgraph.graph import StateGraph, END
 import requests
 from bs4 import BeautifulSoup
 
-print("--- Loading Masterclass Agent Backend v5.2 (Final Fix) ---")
+print("--- Loading Masterclass Agent Backend v5.3 (Final Masterpiece) ---")
 
 os.environ["OPENAI_API_KEY"] = os.getenv("OPENAI_API_KEY")
 os.environ["LANGCHAIN_API_KEY"] = os.getenv("LANGCHAIN_API_KEY")
 os.environ["TAVILY_API_KEY"] = os.getenv("TAVILY_API_KEY")
 os.environ["LANGCHAIN_TRACING_V2"] = "true"
-os.environ["LANGCHAIN_PROJECT"] = "Flask Career Navigator v5.2"
+os.environ["LANGCHAIN_PROJECT"] = "Flask Career Navigator (Masterpiece)"
 
 # --- Pydantic Models ---
 class SkillAnalysis(BaseModel):
@@ -74,81 +74,17 @@ def scrape_web_content(url: str) -> str:
         return soup.get_text(separator=' ', strip=True)[:15000]
     except requests.RequestException as e:
         return f"Error scraping {url}: {e}"
-
-# --- RESUME WRITING ROOM (SUB-GRAPH) ---
-def create_resume_writing_team():
-    """Creates a dedicated sub-graph for generating resume content."""
-    class ResumeTeamState(TypedDict):
-        student_profile: str
-        chosen_career: str
-        market_analysis: SkillAnalysis
-        summary: str
-        experiences: List[JobExperience]
-        base_resume_content: TailoredResumeContent
-        final_resume_content: TailoredResumeContent
-
-    summary_writer_agent = ChatPromptTemplate.from_template(
-        "You are a master storyteller. Based on the user's profile and target career, write a compelling 3-4 sentence professional summary. "
-        "Target Career: {chosen_career}\nUser Profile: {student_profile}"
-    ) | llm
-    experience_rewriter_agent = ChatPromptTemplate.from_template(
-        "You are an expert resume writer. Rewrite the user's work experience to be achievement-oriented, using keywords from the skill analysis. "
-        "Focus on the STAR method. Target Career: {chosen_career}\nRequired Skills: {skills}\nUser Experience: {student_profile}"
-    ) | llm.with_structured_output(JobExperience)
-    base_content_extractor = ChatPromptTemplate.from_template(
-        "You are a data extractor. Extract the user's full name, email, phone, education, and a list of skills from their profile. "
-        "User Profile: {student_profile}"
-    ) | llm.with_structured_output(TailoredResumeContent)
-
-    def summary_node(state: ResumeTeamState):
-        print("    > Writing Room: Summary Agent...")
-        result = summary_writer_agent.invoke(state)
-        return {"summary": result.content}
-    def experience_node(state: ResumeTeamState):
-        print("    > Writing Room: Experience Rewriter Agent...")
-        result = experience_rewriter_agent.invoke({
-            "chosen_career": state["chosen_career"],
-            "skills": state["market_analysis"].technical_skills,
-            "student_profile": state["student_profile"]
-        })
-        return {"experiences": [result]}
-    def base_content_node(state: ResumeTeamState):
-        print("    > Writing Room: Base Content Extractor...")
-        result = base_content_extractor.invoke({"student_profile": state["student_profile"]})
-        return {"base_resume_content": result}
-    def compile_resume_node(state: ResumeTeamState):
-        print("    > Writing Room: Compiling Resume...")
-        final_resume = state["base_resume_content"]
-        final_resume.summary = state["summary"]
-        final_resume.experiences = state["experiences"]
-        return {"final_resume_content": final_resume}
-
-    builder = StateGraph(ResumeTeamState)
-    builder.add_node("extract_base", base_content_node)
-    builder.add_node("write_summary", summary_node)
-    builder.add_node("rewrite_experience", experience_node)
-    builder.add_node("compile", compile_resume_node)
-    
-    # CORRECTED: A robust sequential workflow for the sub-graph
-    builder.set_entry_point("extract_base")
-    builder.add_edge("extract_base", "write_summary")
-    builder.add_edge("write_summary", "rewrite_experience")
-    builder.add_edge("rewrite_experience", "compile")
-    builder.add_edge("compile", END)
-    
-    return builder.compile()
-
-# --- MAIN AGENT WORKFLOW ---
+        
+# --- Specialist Agents ---
 def role_suggester_agent(state: TeamState):
     print("--- 🧑‍🏫 Agent: Role Suggester ---")
     if state["role_choice"] == "resume_based":
         prompt_text = "Analyze the user's profile and suggest the single most suitable job role. Output only the job title. Profile: {profile}"
     else:
-        prompt_text = "Based on current tech trends, suggest a single, high-demand job role for a college student. Output only the job title."
+        prompt_text = "Based on current tech trends, suggest a single, high-demand job role. Output only the job title."
     prompt = ChatPromptTemplate.from_template(prompt_text)
     chain = prompt | llm
     suggested_role = chain.invoke({"profile": state["student_profile"]}).content.strip()
-    print(f"    > Suggested Role: {suggested_role}")
     return {"chosen_career": suggested_role}
 
 def job_market_analyst_agent(state: TeamState):
@@ -170,16 +106,45 @@ def profile_reviewer_agent(state: TeamState):
     feedback = chain.invoke({"profile": state["student_profile"], "skill_analysis": state["market_analysis"].dict()})
     return {"profile_analysis": feedback}
 
-def resume_team_node(state: TeamState):
-    print("--- ✍️ Delegating to Resume Writing Room Sub-Graph ---")
-    resume_writing_team = create_resume_writing_team()
-    sub_graph_input = {
-        "student_profile": state["student_profile"],
-        "chosen_career": state["chosen_career"],
-        "market_analysis": state["market_analysis"]
-    }
-    final_resume_state = resume_writing_team.invoke(sub_graph_input)
-    return {"tailored_resume": final_resume_state["final_resume_content"]}
+# NEW, SIMPLIFIED, AND MORE POWERFUL RESUME AGENT
+def resume_tailor_agent(state: TeamState):
+    print("--- ✍️ Agent: Elite AI Resume Tailor ---")
+    structured_llm = llm.with_structured_output(TailoredResumeContent, method="function_calling")
+    
+    # A superior prompt using Chain of Thought and Few-Shot examples
+    elite_prompt = ChatPromptTemplate.from_messages([
+        ("system", 
+         "You are a world-class executive resume writer for the tech industry, specializing in creating documents that impress recruiters at FAANG companies. Your task is to transform a student's raw profile into a powerful, achievement-oriented resume that will pass any ATS and capture human attention. "
+         "Think step-by-step to achieve this:\n"
+         "1.  **Extract Core Information:** First, meticulously extract the user's full name, email, phone number, and education from their raw profile.\n"
+         "2.  **Craft a Compelling Summary:** Write a powerful 3-4 line professional summary that positions the student as a high-potential candidate for their target role, integrating keywords from the market analysis.\n"
+         "3.  **Rewrite Experience:** For each job experience, rewrite the description into 3-4 powerful bullet points. Each bullet point MUST start with a strong action verb and follow the STAR method (Situation, Task, Action, Result) where possible. Quantify results with metrics (e.g., 'Increased efficiency by 30%', 'Managed a project impacting 500+ users', 'Reduced server costs by 15%').\n"
+         "4.  **Curate Skills:** Select the most relevant technical and soft skills from their profile and the market analysis, creating a concise and powerful list.\n"
+         "5.  **Final Assembly:** Assemble all these components into the final structured output. Do not invent information, but creatively and professionally rephrase the user's input to highlight their achievements and potential."),
+        ("human", 
+         "### HIGH-QUALITY OUTPUT EXAMPLE ###\n"
+         "{\n"
+         "  \"full_name\": \"Jane Doe\", \"email\": \"jane.doe@email.com\", \"phone\": \"123-456-7890\",\n"
+         "  \"summary\": \"Aspiring Data Analyst with a strong foundation in Python and data structures from a Computer Science background. Eager to apply skills in data manipulation (Pandas) and visualization (Tableau) to translate complex datasets into actionable business insights.\",\n"
+         "  \"experiences\": [{\"title\": \"Data Analyst Intern\", \"company\": \"BizCorp\", \"dates\": \"Summer 2024\", \"description\": [\"Developed and automated weekly performance reports using Python and Pandas, reducing manual generation time by 80%.\", \"Queried SQL databases to extract and analyze sales data, identifying key trends that informed a successful Q3 marketing strategy.\", \"Created interactive dashboards in Tableau to visualize customer behavior, leading to a 15% improvement in user engagement tracking.\"]}],\n"
+         "  \"education\": \"Bachelor of Science in Computer Science, State University (Expected May 2025)\",\n"
+         "  \"skills\": [\"Python\", \"Pandas\", \"NumPy\", \"SQL\", \"Tableau\", \"Microsoft Excel\", \"Data Visualization\", \"Communication\"]\n"
+         "}\n"
+         "### END EXAMPLE ###\n\n"
+         "--- NOW, PERFORM THIS FOR THE FOLLOWING USER ---\n\n"
+         "Target Role: {career}\n\n"
+         "Required Market Skills: {skills}\n\n"
+         "User's Raw Profile (from Resume & LinkedIn):\n{profile}"
+        )
+    ])
+    
+    chain = elite_prompt | structured_llm
+    resume_content = chain.invoke({
+        "career": state["chosen_career"],
+        "skills": state["market_analysis"].dict(),
+        "profile": state["student_profile"]
+    })
+    return {"tailored_resume": resume_content}
 
 def lead_agent_node(state: TeamState):
     print("--- 👑 Agent: Lead Agent (Synthesizing & Planning) ---")
@@ -202,13 +167,13 @@ graph_builder = StateGraph(TeamState)
 graph_builder.add_node("suggest_role", role_suggester_agent)
 graph_builder.add_node("analyze_market", job_market_analyst_agent)
 graph_builder.add_node("review_profile", profile_reviewer_agent)
-graph_builder.add_node("resume_writing_team", resume_team_node)
+graph_builder.add_node("tailor_resume", resume_tailor_agent)
 graph_builder.add_node("create_final_plan", lead_agent_node)
 graph_builder.set_conditional_entry_point(route_initial_choice, {"suggest_role": "suggest_role", "analyze_market": "analyze_market"})
 graph_builder.add_edge("suggest_role", "analyze_market")
 graph_builder.add_edge("analyze_market", "review_profile")
-graph_builder.add_edge("review_profile", "resume_writing_team")
-graph_builder.add_edge("resume_writing_team", "create_final_plan")
+graph_builder.add_edge("review_profile", "tailor_resume")
+graph_builder.add_edge("tailor_resume", "create_final_plan")
 graph_builder.add_edge("create_final_plan", END)
 navigator_agent = graph_builder.compile()
 
@@ -220,7 +185,7 @@ def run_agent(student_profile, role_choice):
 
 def run_chat(user_message, history, plan_context):
     prompt = ChatPromptTemplate.from_messages([
-        ("system", "You are a helpful career coach. The user received the following career action plan. Answer their follow-up questions based ONLY on this plan.\n\n--- CAREER PLAN ---\n{plan_text}"),
+        ("system", "You are a helpful career coach. The user received the following plan. Answer their follow-up questions based ONLY on this plan.\n\n--- PLAN CONTEXT ---\n{plan_text}"),
         ("user", "{user_question}")
     ])
     chat_chain = prompt | llm
