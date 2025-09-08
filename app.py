@@ -5,8 +5,9 @@ from pypdf import PdfReader
 import os
 import secrets
 import uuid
-from agent import run_agent, scrape_web_content, run_chat
-from resume_generator import create_resume_pdf, CareerActionPlan # Import CareerActionPlan for type hint
+# CORRECTED LINE: CareerActionPlan is imported from agent.py where it is defined.
+from agent import run_agent, scrape_web_content, run_chat, CareerActionPlan
+from resume_generator import create_resume_pdf
 
 app = Flask(__name__)
 app.secret_key = secrets.token_hex(16)
@@ -15,10 +16,12 @@ os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
 @app.route('/')
 def index():
+    """Renders the main input page."""
     return render_template('index.html')
 
 @app.route('/process', methods=['POST'])
 def process():
+    """Handles the form submission and runs the agent."""
     resume_file = request.files.get('resume')
     profile_pic_file = request.files.get('profile_picture')
     linkedin_url = request.form.get('linkedin_url', '').strip()
@@ -61,7 +64,6 @@ def process():
     resume_pdf_filename = f"{unique_id}_generated_resume.pdf"
     resume_pdf_path = os.path.join(app.config['UPLOAD_FOLDER'], resume_pdf_filename)
     
-    # CORRECTED LINE: Pass the chosen_career to the PDF generator
     create_resume_pdf(tailored_resume_content, image_filepath, resume_pdf_path, final_plan.chosen_career)
 
     session['plan'] = final_plan.dict()
@@ -70,14 +72,17 @@ def process():
 
 @app.route('/preview/<filename>')
 def preview_resume(filename):
+    """Serves the PDF for inline viewing."""
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
 @app.route('/download/<filename>')
 def download_resume(filename):
+    """Provides the generated resume for download with the correct header."""
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename, as_attachment=True)
 
 @app.route('/chat', methods=['POST'])
 def chat():
+    """Handles AJAX requests from the chat interface."""
     user_message = request.json.get('message')
     history = request.json.get('history')
     plan_context = session.get('plan', {})
