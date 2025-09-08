@@ -10,13 +10,13 @@ from langgraph.graph import StateGraph, END
 import requests
 from bs4 import BeautifulSoup
 
-print("--- Loading Masterclass Agent Backend v5.3 (Final Masterpiece) ---")
+print("--- Loading Masterclass Agent Backend v5.4 (Final Prompt Fix) ---")
 
 os.environ["OPENAI_API_KEY"] = os.getenv("OPENAI_API_KEY")
 os.environ["LANGCHAIN_API_KEY"] = os.getenv("LANGCHAIN_API_KEY")
 os.environ["TAVILY_API_KEY"] = os.getenv("TAVILY_API_KEY")
 os.environ["LANGCHAIN_TRACING_V2"] = "true"
-os.environ["LANGCHAIN_PROJECT"] = "Flask Career Navigator (Masterpiece)"
+os.environ["LANGCHAIN_PROJECT"] = "Flask Career Navigator (Final)"
 
 # --- Pydantic Models ---
 class SkillAnalysis(BaseModel):
@@ -75,13 +75,12 @@ def scrape_web_content(url: str) -> str:
     except requests.RequestException as e:
         return f"Error scraping {url}: {e}"
         
-# --- Specialist Agents ---
 def role_suggester_agent(state: TeamState):
     print("--- 🧑‍🏫 Agent: Role Suggester ---")
     if state["role_choice"] == "resume_based":
         prompt_text = "Analyze the user's profile and suggest the single most suitable job role. Output only the job title. Profile: {profile}"
     else:
-        prompt_text = "Based on current tech trends, suggest a single, high-demand job role. Output only the job title."
+        prompt_text = "Based on current tech trends, suggest a single, high-demand job role for a college student. Output only the job title."
     prompt = ChatPromptTemplate.from_template(prompt_text)
     chain = prompt | llm
     suggested_role = chain.invoke({"profile": state["student_profile"]}).content.strip()
@@ -106,32 +105,47 @@ def profile_reviewer_agent(state: TeamState):
     feedback = chain.invoke({"profile": state["student_profile"], "skill_analysis": state["market_analysis"].dict()})
     return {"profile_analysis": feedback}
 
-# NEW, SIMPLIFIED, AND MORE POWERFUL RESUME AGENT
 def resume_tailor_agent(state: TeamState):
     print("--- ✍️ Agent: Elite AI Resume Tailor ---")
     structured_llm = llm.with_structured_output(TailoredResumeContent, method="function_calling")
     
-    # A superior prompt using Chain of Thought and Few-Shot examples
+    # CORRECTED PROMPT: Curly braces in the example are now escaped with double braces {{ ... }}
     elite_prompt = ChatPromptTemplate.from_messages([
         ("system", 
-         "You are a world-class executive resume writer for the tech industry, specializing in creating documents that impress recruiters at FAANG companies. Your task is to transform a student's raw profile into a powerful, achievement-oriented resume that will pass any ATS and capture human attention. "
-         "Think step-by-step to achieve this:\n"
-         "1.  **Extract Core Information:** First, meticulously extract the user's full name, email, phone number, and education from their raw profile.\n"
-         "2.  **Craft a Compelling Summary:** Write a powerful 3-4 line professional summary that positions the student as a high-potential candidate for their target role, integrating keywords from the market analysis.\n"
-         "3.  **Rewrite Experience:** For each job experience, rewrite the description into 3-4 powerful bullet points. Each bullet point MUST start with a strong action verb and follow the STAR method (Situation, Task, Action, Result) where possible. Quantify results with metrics (e.g., 'Increased efficiency by 30%', 'Managed a project impacting 500+ users', 'Reduced server costs by 15%').\n"
-         "4.  **Curate Skills:** Select the most relevant technical and soft skills from their profile and the market analysis, creating a concise and powerful list.\n"
-         "5.  **Final Assembly:** Assemble all these components into the final structured output. Do not invent information, but creatively and professionally rephrase the user's input to highlight their achievements and potential."),
+         "You are a top-tier executive resume writer from a leading FAANG company. Your task is to transform a student's raw profile into a powerful, achievement-oriented resume that will pass any ATS and capture human attention. "
+         "Follow the examples provided closely."),
         ("human", 
-         "### HIGH-QUALITY OUTPUT EXAMPLE ###\n"
-         "{\n"
-         "  \"full_name\": \"Jane Doe\", \"email\": \"jane.doe@email.com\", \"phone\": \"123-456-7890\",\n"
-         "  \"summary\": \"Aspiring Data Analyst with a strong foundation in Python and data structures from a Computer Science background. Eager to apply skills in data manipulation (Pandas) and visualization (Tableau) to translate complex datasets into actionable business insights.\",\n"
-         "  \"experiences\": [{\"title\": \"Data Analyst Intern\", \"company\": \"BizCorp\", \"dates\": \"Summer 2024\", \"description\": [\"Developed and automated weekly performance reports using Python and Pandas, reducing manual generation time by 80%.\", \"Queried SQL databases to extract and analyze sales data, identifying key trends that informed a successful Q3 marketing strategy.\", \"Created interactive dashboards in Tableau to visualize customer behavior, leading to a 15% improvement in user engagement tracking.\"]}],\n"
-         "  \"education\": \"Bachelor of Science in Computer Science, State University (Expected May 2025)\",\n"
-         "  \"skills\": [\"Python\", \"Pandas\", \"NumPy\", \"SQL\", \"Tableau\", \"Microsoft Excel\", \"Data Visualization\", \"Communication\"]\n"
-         "}\n"
+         "### EXAMPLE ###\n"
+         "Target Role: Data Analyst\n"
+         "Required Skills: Python, Pandas, SQL, Tableau, Communication\n"
+         "User's Raw Profile:\n"
+         "- Name: Jane Doe\n"
+         "- Experience: Intern at BizCorp. I was responsible for making weekly reports.\n"
+         "- Education: CS Degree at State U.\n"
+         "- Skills: Python\n\n"
+         "### GOOD OUTPUT FROM YOU ###\n"
+         "{{\n"
+         "  \"full_name\": \"Jane Doe\",\n"
+         "  \"email\": \"jane.doe@email.com\",\n"
+         "  \"phone\": \"123-456-7890\",\n"
+         "  \"summary\": \"Aspiring Data Analyst with a strong foundation in Python and data structures from my Computer Science studies. Eager to apply my skills in data manipulation and visualization to drive business insights.\",\n"
+         "  \"experiences\": [\n"
+         "    {{\n"
+         "      \"title\": \"Data Analyst Intern\",\n"
+         "      \"company\": \"BizCorp\",\n"
+         "      \"dates\": \"Summer 2024\",\n"
+         "      \"description\": [\n"
+         "        \"Developed and automated weekly performance reports using Python and Pandas, reducing manual effort by 80%.\",\n"
+         "        \"Queried SQL databases to extract and analyze sales data, identifying key trends that informed marketing strategy.\",\n"
+         "        \"Presented findings to team members, demonstrating strong communication skills.\"\n"
+         "      ]\n"
+         "    }}\n"
+         "  ],\n"
+         "  \"education\": \"Bachelor of Science in Computer Science, State University\",\n"
+         "  \"skills\": [\"Python\", \"Pandas\", \"NumPy\", \"SQL\", \"Tableau\", \"Microsoft Excel\", \"Communication\"]\n"
+         "}}\n"
          "### END EXAMPLE ###\n\n"
-         "--- NOW, PERFORM THIS FOR THE FOLLOWING USER ---\n\n"
+         "--- NOW, DO THE SAME FOR THIS USER ---\n\n"
          "Target Role: {career}\n\n"
          "Required Market Skills: {skills}\n\n"
          "User's Raw Profile (from Resume & LinkedIn):\n{profile}"
